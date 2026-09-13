@@ -1,0 +1,53 @@
+# Astra Presence
+
+A free Windows companion that displays **GPT-6 Astra**, the Astra spiral artwork, and an elapsed timer on your Discord profile.
+
+**[Open the app](https://findastra.github.io/astra-discord-presence/)** · **[Download for Windows](https://findastra.github.io/astra-discord-presence/downloads/astra-presence-windows.zip)**
+
+## Use it
+
+1. Download and extract the ZIP. Install [Node.js 24 or later](https://nodejs.org/en/download) if it is not already installed.
+2. Double-click **Start Astra Presence.cmd**. Your browser opens the local controls. No npm install is needed.
+3. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application named **GPT-6 Astra**. The application name determines the title Discord displays.
+4. Upload `public/astra-galaxy.png` under **Rich Presence → Art Assets**, named **astra_galaxy**. Copy the Application ID from General Information.
+5. In the local app, expand **Connect to Discord**, paste the Application ID, and save.
+6. Open Discord desktop, sign in, and enable activity sharing in Discord's settings. Choose **Start session** or **Automatic** in Astra Presence.
+
+No bot token, API key, paid API, card, hosting subscription, or Discord server bot is required. Application creation may require Discord's terms acceptance. This project doesn't accept terms for you.
+
+## Modes
+
+- **Manual:** Starts an elapsed timer and stays on until Stop sharing or Quit app. Works while using Astra anywhere.
+- **Automatic:** An experimental local adapter checks the latest non-archived primary Codex CLI/desktop task's model and update timestamp every five seconds. Shares when that task is `gpt-6-astra` and was updated in the last five minutes. Stops when stale, another model becomes latest, or detection fails. It doesn't track foreground focus or measure exact model computation time. Background metadata updates can extend the window; long silent reasoning or reading can exceed it. Use Manual when this heuristic doesn't suit you.
+- **Off:** Disconnects immediately. The app starts with sharing off each time.
+
+The timer measures this companion's continuous active session, starting at detection or your manual click. It survives Discord reconnects, but resets after stopping, inactivity, mode changes, or app restart. Closing the browser tab leaves the companion running; **Quit app** stops it.
+
+## Public site versus desktop companion
+
+Like [Ghost Protocol](https://findastra.github.io/ghost-protocol/), the public page uses GitHub Pages and relative asset URLs. Anyone can preview the timer and download the companion. Preview controls are explicitly labeled and never claim to update Discord.
+
+A hosted website cannot access Discord's local IPC pipe. Each visitor runs their own companion and configures their own free Discord Application ID. The site doesn't contact localhost automatically; **Open companion** navigates there only after a click.
+
+## Privacy
+
+The companion binds to `127.0.0.1` only, validates exact Host/Origin for changes, and has no external telemetry. Automatic mode opens the newest `~/.codex/state_N.sqlite` read-only and selects only `model` and `updated_at`, with filters to exclude subagents and archived tasks. It never selects prompts, titles, paths, or transcripts. This database is an internal implementation detail and may change; failure hides the activity.
+
+Only the public Discord Application ID and image key are stored in `.local/config.json`, which is ignored by Git and excluded from the ZIP. Session state is kept in memory. The Discord IPC handshake may contain account information; it is neither logged nor retained. The only outbound presence payload is fixed activity text, timestamp, and asset key.
+
+## Development
+
+```sh
+node --test
+node src/server.js
+```
+
+The control panel runs at `http://127.0.0.1:38761/`. Optional `ASTRA_PORT` changes the port when running the server directly; the click-to-run launcher always uses the default port. Don't open `public/index.html` to control Discord: file mode is a styled public preview with a link to the companion.
+
+`node scripts/package.js` copies the public UI to `docs/` in hosted mode and builds an allowlisted ZIP. GitHub Pages serves `main` → `/docs`. There are no package dependencies or hosted compute functions. Changes are explained in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## Artwork and references
+
+The image is a still capture of the actual 6-shaped star field on [OpenAI's Astra launch page](https://openai.com/index/gpt-6-astra/), cropped to remove navigation and page text. The site adds subtle motion to the still; it does not reproduce the original interactive particle simulation. OpenAI retains rights to its artwork and marks. This independent fan companion is not an official OpenAI or Discord app. The code license does not license the third-party artwork.
+
+Protocol references: [Discord Rich Presence](https://docs.discord.com/developers/discord-social-sdk/development-guides/setting-rich-presence), [Discord's IPC protocol notes](https://github.com/discord/discord-rpc/blob/master/documentation/hard-mode.md). This lightweight implementation uses the documented legacy local IPC protocol; compatibility with future Discord releases is not guaranteed.

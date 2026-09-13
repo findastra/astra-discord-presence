@@ -1,0 +1,154 @@
+import http from 'node:http';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { Presence, activity, validateConfig } from './presence.js';
+import { detectAstra } from './detector.js';
+import { DiscordRPC } from './rpc.js';
+
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const configPath = join(root, '.local', 'config.json');
+const port = Number(process.env.ASTRA_PORT || 38761);
+if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid ASTRA_PORT.');
+const origin = `http://127.0.0.1:${port}`;
+let config = { clientId: '', image: 'astra_galaxy' };
+try { config = validateConfig(JSON.parse(readFileSync(configPath, 'utf8'))); } catch { /* Setup stays available. */ }
+const presence = new Presence();
+const rpc = new DiscordRPC();
+let detection = { active: false, message: 'Choose Automatic to detect recent Codex activity.' };
+let message = config.clientId ? 'Ready. Choose how to share.' : 'One-time setup: add your Discord Application ID.';
+let published = false;
+let lastSent;
+let revision = 0;
+let running = false;
+let rerun = false;
+let closing = false;
+rpc.on('disconnected', () => { published = false; lastSent = undefined; });
+
+async function sync() {
+  if (closing) return;
+  if (running) { rerun = true; return; }
+  running = true;
+  const current = revision;
+  try {
+    if (presence.mode === 'auto') detection = detectAstra();
+    presence.update(detection.active);
+    if (!config.clientId) { message = 'Add your Discord Application ID to connect.'; return; }
+    if (presence.startedAt === null) {
+      if (rpc.ready && lastSent !== null) await rpc.setActivity(null);
+      published = false;
+      lastSent = null;
+      rpc.disconnect();
+      message = presence.mode === 'off' ? 'Sharing is off.' : detection.message;
+      return;
+    }
+    await rpc.connect(config.clientId);
+    if (current !== revision || closing) { rerun = true; return; }
+    const payload = activity(presence.startedAt, config.image);
+    const signature = JSON.stringify(payload);
+    if (lastSent !== signature) {
+      await rpc.setActivity(payload);
+      lastSent = signature;
+    }
+    published = true;
+    message = 'Activity accepted by Discord. Your activity privacy settings control who sees it.';
+  } catch (error) {
+    published = false;
+    message = error.message;
+  } finally {
+    running = false;
+    if (rerun && !closing) { rerun = false; setImmediate(sync); }
+  }
+}
+
+function send(res, status, body, type = 'application/json') {
+  res.writeHead(status, {
+    'Content-Type': type,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+  });
+  res.end(type === 'application/json' ? JSON.stringify(body) : body);
+}
+
+async function jsonBody(req) {
+  if (req.headers['content-type'] !== 'application/json') throw new Error('Expected JSON.');
+  let body = '';
+  for await (const chunk of req) {
+    body += chunk;
+    if (Buffer.byteLength(body) > 4096) throw new Error('Request too large.');
+  }
+  return JSON.parse(body);
+}
+
+const assets = {
+  '/': ['index.html', 'text/html; charset=utf-8'],
+  '/app.js': ['app.js', 'text/javascript; charset=utf-8'],
+  '/style.css': ['style.css', 'text/css; charset=utf-8'],
+  '/astra-galaxy.png': ['astra-galaxy.png', 'image/png'],
+};
+
+const server = http.createServer(async (req, res) => {
+  // Exact Host and Origin checks prevent DNS rebinding and cross-site control.
+  if (req.headers.host !== `127.0.0.1:${port}`) return send(res, 403, { error: 'Local requests only.' });
+  try {
+    if (req.method === 'GET' && req.url === '/api/status') {
+      return send(res, 200, { app: 'astra-discord-presence', config, mode: presence.mode, startedAt: presence.startedAt, published,
+        connected: rpc.ready, message, detection: detection.message });
+    }
+    if (req.method === 'POST') {
+      if (req.headers.origin !== origin) return send(res, 403, { error: 'Open the local control panel to make changes.' });
+      const input = await jsonBody(req);
+      if (req.url === '/api/config') {
+        const nextConfig = validateConfig(input);
+        mkdirSync(join(root, '.local'), { recursive: true });
+        writeFileSync(configPath, JSON.stringify(nextConfig, null, 2) + '\n', { mode: 0o600 });
+        config = nextConfig;
+        revision++;
+        rpc.disconnect();
+        void sync();
+        return send(res, 200, { ok: true });
+      }
+      if (req.url === '/api/mode') {
+        presence.setMode(input.mode);
+        revision++;
+        if (input.mode === 'off') rpc.disconnect();
+        void sync();
+        return send(res, 200, { ok: true });
+      }
+      if (req.url === '/api/quit') {
+        send(res, 200, { ok: true });
+        void shutdown();
+        return;
+      }
+    }
+    if (req.method === 'GET' && assets[req.url]) {
+      const [file, type] = assets[req.url];
+      return send(res, 200, readFileSync(join(root, 'public', file)), type);
+    }
+    send(res, 404, { error: 'Not found.' });
+  } catch (error) { send(res, 400, { error: error instanceof SyntaxError ? 'Invalid JSON.' : error.message }); }
+});
+server.requestTimeout = 10000;
+server.headersTimeout = 10000;
+server.on('error', error => {
+  console.error(error.code === 'EADDRINUSE' ? `Astra Presence may already be running. Open ${origin}` : error.message);
+  clearInterval(interval);
+  rpc.disconnect();
+  process.exitCode = 1;
+});
+const interval = setInterval(sync, 5000);
+async function shutdown() {
+  if (closing) return;
+  closing = true;
+  clearInterval(interval);
+  presence.setMode('off');
+  try { if (rpc.ready) await rpc.setActivity(null); } catch { /* Closing IPC also removes presence. */ }
+  rpc.disconnect();
+  server.close();
+  server.closeAllConnections();
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
+server.listen(port, '127.0.0.1', () => console.log(`Astra Presence: ${origin}\nSharing is off until you choose a mode. Close with Quit app or Ctrl+C.`));
