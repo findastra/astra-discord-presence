@@ -13,5 +13,9 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
-"%ASTRA_NODE%" src\launch.js
+if "%~1"=="--install-startup" (
+  "%ASTRA_NODE%" scripts\startup.js
+) else (
+  "%ASTRA_NODE%" src\launch.js
+)
 if errorlevel 1 pause

@@ -36,10 +36,14 @@ async function refresh() {
     if (!initialized) {
       $('clientId').value = state.config.clientId;
       $('image').value = state.config.image;
+      $('share-project').checked = state.config.shareProject;
+      $('project-name').value = state.config.projectName || '';
+      $('automatic-start').checked = state.config.automaticOnStart;
       $('setup').open = !state.config.clientId;
       initialized = true;
     }
     $('status').textContent = state.message;
+    $('project-preview').textContent = state.project ? `Working on ${state.project}` : 'Exploring ideas';
     $('dot').className = state.published ? 'live' : '';
     $('badge').textContent = state.published ? 'SHARING' : state.mode === 'off' ? 'OFF' : 'WAITING';
     $('auto').setAttribute('aria-pressed', String(state.mode === 'auto'));
@@ -79,7 +83,9 @@ for (const mode of ['manual', 'off', 'auto']) {
 $('settings').addEventListener('submit', async event => {
   event.preventDefault();
   try {
-    await request('/api/config', { clientId: $('clientId').value, image: $('image').value });
+    await request('/api/config', { clientId: $('clientId').value, image: $('image').value,
+      shareProject: $('share-project').checked, projectName: $('project-name').value,
+      automaticOnStart: $('automatic-start').checked });
     $('save-status').textContent = 'Saved. Choose Start session or Automatically detect Codex.';
     await refresh();
   } catch (error) { $('save-status').textContent = error.message; }

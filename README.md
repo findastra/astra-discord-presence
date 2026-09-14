@@ -19,7 +19,7 @@ No bot token, API key, paid API, card, hosting subscription, or Discord server b
 
 - **Manual:** Starts an elapsed timer and stays on until Stop sharing or Quit app. Works while using Astra anywhere.
 - **Automatic:** An experimental local adapter checks the latest non-archived primary Codex CLI/desktop task's model and update timestamp every five seconds. Shares when that task is `gpt-6-astra` and was updated in the last five minutes. Stops when stale, another model becomes latest, or detection fails. It doesn't track foreground focus or measure exact model computation time. Background metadata updates can extend the window; long silent reasoning or reading can exceed it. Use Manual when this heuristic doesn't suit you.
-- **Off:** Disconnects immediately. The app starts with sharing off each time.
+- **Off:** Disconnects immediately. The app starts with sharing off unless you enable Automatic on startup.
 
 The timer measures this companion's continuous active session, starting at detection or your manual click. It survives Discord reconnects, but resets after stopping, inactivity, mode changes, or app restart. Closing the browser tab leaves the companion running; **Quit app** stops it.
 
@@ -31,9 +31,9 @@ A hosted website cannot access Discord's local IPC pipe. Each visitor runs their
 
 ## Privacy
 
-The companion binds to `127.0.0.1` only, validates exact Host/Origin for changes, and has no external telemetry. Automatic mode opens the newest `~/.codex/state_N.sqlite` read-only and selects only `model` and `updated_at`, with filters to exclude subagents and archived tasks. It never selects prompts, titles, paths, or transcripts. This database is an internal implementation detail and may change; failure hides the activity.
+The companion binds to `127.0.0.1` only, validates exact Host/Origin for changes, and has no external telemetry. Automatic mode opens the newest `~/.codex/state_N.sqlite` read-only and selects `model` and `updated_at`, with filters to exclude subagents and archived tasks. When project sharing is enabled, it also reads `cwd` locally to extract the last folder name. It never sends full paths or reads prompts, titles, or transcripts. This database is an internal implementation detail and may change; failure hides the activity.
 
-Only the public Discord Application ID and image key are stored in `.local/config.json`, which is ignored by Git and excluded from the ZIP. Session state is kept in memory. The Discord IPC handshake may contain account information; it is neither logged nor retained. The only outbound presence payload is fixed activity text, timestamp, and asset key.
+The public Discord Application ID, image key, project-sharing preference, and optional custom project name are stored in `.local/config.json`, which is ignored by Git and excluded from the ZIP. Session state is kept in memory. The Discord IPC handshake may contain account information; it is neither logged nor retained. The outbound presence payload contains activity text, timestamp, asset key, and the project name when enabled.
 
 ## Development
 
@@ -51,3 +51,15 @@ The control panel runs at `http://127.0.0.1:38761/`. Optional `ASTRA_PORT` chang
 The image is a still capture of the actual 6-shaped star field on [OpenAI's Astra launch page](https://openai.com/index/gpt-6-astra/), cropped to remove navigation and page text. The site adds subtle motion to the still; it does not reproduce the original interactive particle simulation. OpenAI retains rights to its artwork and marks. This independent fan companion is not an official OpenAI or Discord app. The code license does not license the third-party artwork.
 
 Protocol references: [Discord Rich Presence](https://docs.discord.com/developers/discord-social-sdk/development-guides/setting-rich-presence), [Discord's IPC protocol notes](https://github.com/discord/discord-rpc/blob/master/documentation/hard-mode.md). This lightweight implementation uses the documented legacy local IPC protocol; compatibility with future Discord releases is not guaranteed.
+
+## Project sharing
+
+Enable **Show my project on Discord** in the local connection settings. Leave Project name blank to use the latest recent Astra workspace folder name, or enter a fixed friendly label. The activity reads **Working on [project]**. It follows metadata updates rather than window focus; worktree folder names may differ from the saved Codex project name, so use the override when needed. Detection becomes generic after five minutes without recent Astra metadata. Sharing is opt-in for each installation.
+
+The Discord app icon uses the original swirl without text. Animated Rich Presence images require an external hosted image URL according to Discord's documentation; uploaded presence assets are static. This version uses the static asset.
+
+## Hands-free startup
+
+After completing the connection setup, double-click **Enable Automatic Startup.cmd** once. It adds an Astra Presence launcher to your Windows user Startup folder and enables Automatic on startup. At your next Windows sign-in, the companion runs quietly with no browser or console window. Keep the extracted app folder in place. Discord desktop must also be running; the companion retries connecting when Discord becomes available.
+
+Automatic mode detects recent Astra task metadata, not merely whether Codex is open. It hides activity after five minutes without a recent update. You can still stop sharing or quit from the local app. To prevent launch at sign-in, remove **Astra Presence.vbs** from the Windows Startup folder (Win+R, shell:startup), or run `node scripts/startup.js --remove`. The connection setting controls whether a launched companion starts in Automatic mode; it does not install the Windows startup entry itself.

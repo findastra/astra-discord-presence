@@ -14,6 +14,7 @@ const origin = `http://127.0.0.1:${port}`;
 let config = { clientId: '', image: 'astra_galaxy' };
 try { config = validateConfig(JSON.parse(readFileSync(configPath, 'utf8'))); } catch { /* Setup stays available. */ }
 const presence = new Presence();
+if (config.automaticOnStart) presence.setMode('auto');
 const rpc = new DiscordRPC();
 let detection = { active: false, message: 'Choose Automatic to detect recent Codex activity.' };
 let message = config.clientId ? 'Ready. Choose how to share.' : 'One-time setup: add your Discord Application ID.';
@@ -31,7 +32,7 @@ async function sync() {
   running = true;
   const current = revision;
   try {
-    if (presence.mode === 'auto') detection = detectAstra();
+    if (presence.mode === 'auto' || (presence.mode === 'manual' && config.shareProject)) detection = detectAstra(undefined, Date.now(), config.shareProject);
     presence.update(detection.active);
     if (!config.clientId) { message = 'Add your Discord Application ID to connect.'; return; }
     if (presence.startedAt === null) {
@@ -44,7 +45,7 @@ async function sync() {
     }
     await rpc.connect(config.clientId);
     if (current !== revision || closing) { rerun = true; return; }
-    const payload = activity(presence.startedAt, config.image);
+    const payload = activity(presence.startedAt, config.image, currentProject());
     const signature = JSON.stringify(payload);
     if (lastSent !== signature) {
       await rpc.setActivity(payload);
@@ -59,6 +60,10 @@ async function sync() {
     running = false;
     if (rerun && !closing) { rerun = false; setImmediate(sync); }
   }
+}
+
+function currentProject() {
+  return config.shareProject ? (config.projectName || detection.project || '') : '';
 }
 
 function send(res, status, body, type = 'application/json') {
@@ -95,7 +100,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/api/status') {
       return send(res, 200, { app: 'astra-discord-presence', config, mode: presence.mode, startedAt: presence.startedAt, published,
-        connected: rpc.ready, message, detection: detection.message });
+        connected: rpc.ready, message, project: currentProject(), detection: detection.message });
     }
     if (req.method === 'POST') {
       if (req.headers.origin !== origin) return send(res, 403, { error: 'Open the local control panel to make changes.' });
@@ -151,4 +156,7 @@ async function shutdown() {
 }
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-server.listen(port, '127.0.0.1', () => console.log(`Astra Presence: ${origin}\nSharing is off until you choose a mode. Close with Quit app or Ctrl+C.`));
+server.listen(port, '127.0.0.1', () => {
+  console.log(`Astra Presence: ${origin}\nClose with Quit app or Ctrl+C.`);
+  void sync();
+});

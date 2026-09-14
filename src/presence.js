@@ -22,12 +22,16 @@ export class Presence {
   }
 }
 
-export function activity(startedAt, image = 'astra_galaxy') {
+export function projectLabel(value) {
+  return String(value ?? '').replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 110);
+}
+
+export function activity(startedAt, image = 'astra_galaxy', project = '') {
   if (startedAt === null) return null;
   return {
     type: 0,
     details: 'Using GPT-6 Astra',
-    state: 'Exploring ideas',
+    state: projectLabel(project) ? `Working on ${projectLabel(project)}` : 'Exploring ideas',
     timestamps: { start: startedAt },
     assets: { large_image: image, large_text: 'GPT-6 Astra' },
   };
@@ -38,5 +42,5 @@ export function validateConfig(input) {
   const image = String(input.image ?? 'astra_galaxy').trim();
   if (!/^\d{17,20}$/.test(clientId)) throw new Error('Paste the 17–20 digit Discord Application ID. No token needed.');
   if (!/^[a-z0-9_-]{1,128}$/.test(image)) throw new Error('Use an uploaded asset key, such as astra_galaxy.');
-  return { clientId, image };
+  return { clientId, image, shareProject: input.shareProject === true, projectName: projectLabel(input.projectName), automaticOnStart: input.automaticOnStart === true };
 }

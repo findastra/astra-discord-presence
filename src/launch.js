@@ -15,5 +15,5 @@ if (!(await alive())) {
   for (let i = 0; i < 30 && !(await alive()); i++) await new Promise(r => setTimeout(r, 200));
 }
 if (await alive()) {
-  spawn('rundll32.exe', ['url.dll,FileProtocolHandler', url], { detached: true, windowsHide: true, stdio: 'ignore' }).unref();
+  if (!process.argv.includes('--background')) spawn('rundll32.exe', ['url.dll,FileProtocolHandler', url], { detached: true, windowsHide: true, stdio: 'ignore' }).unref();
 } else { console.error('Could not start. Port 38761 may be in use. Run node src/server.js for details.'); process.exitCode = 1; }

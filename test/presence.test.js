@@ -43,16 +43,27 @@ test('read-only detector excludes subagents and respects a newer non-Astra prima
   const dir = mkdtempSync(join(tmpdir(), 'astra-detect-'));
   try {
     const db = new DatabaseSync(join(dir, 'state_5.sqlite'));
-    db.exec('CREATE TABLE threads(model TEXT, updated_at INTEGER, archived INTEGER, source TEXT, agent_path TEXT)');
-    const add = db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?, ?)');
+    db.exec('CREATE TABLE threads(model TEXT, updated_at INTEGER, archived INTEGER, source TEXT, agent_path TEXT, cwd TEXT)');
+    const add = db.prepare('INSERT INTO threads(model, updated_at, archived, source, agent_path) VALUES (?, ?, ?, ?, ?)');
     add.run('gpt-6-astra', 999, 0, 'vscode', null);
     add.run('codex-auto-review', 1000, 0, '{"subagent":{}}', null);
     assert.equal(detectAstra(dir, 1_000_000).active, true);
+    db.prepare('UPDATE threads SET cwd = ? WHERE model = ?').run("C:\\Users\\private\\Mommy's Basis of Design", 'gpt-6-astra');
+    assert.equal(detectAstra(dir, 1_000_000).project, '');
+    assert.equal(detectAstra(dir, 1_000_000, true).project, "Mommy's Basis of Design");
+    assert.equal(detectAstra(dir, 2_000_000, true).project, '');
     add.run('gpt-5.6-sol', 1001, 0, 'vscode', null);
     assert.equal(detectAstra(dir, 1_002_000).active, false);
     db.close();
     assert.equal(detectAstra(join(dir, 'missing')).active, false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('project sharing is opt-in and project payload is bounded plain text', () => {
+  assert.equal(validateConfig({ clientId: '123456789012345678' }).shareProject, false);
+  const cfg = validateConfig({ clientId: '123456789012345678', shareProject: true, projectName: '  My\nProject  ' });
+  assert.equal(cfg.projectName, 'My Project');
+  assert.equal(activity(17, 'astra_galaxy', "Mommy's Basis of Design").state, "Working on Mommy's Basis of Design");
+  assert.ok(activity(17, 'astra_galaxy', 'x'.repeat(200)).state.length <= 128);
 });
 test('IPC framing handles fragmented and combined packets, plus bounded sizes', () => {
   const decoder = new Decoder(); const packet = frame(1, { evt: 'READY' });

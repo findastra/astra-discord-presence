@@ -20,3 +20,9 @@
 - Public GitHub Pages app verified at https://findastra.github.io/astra-discord-presence/. The Windows ZIP download returned HTTP 200 with ZIP content type; the native ZIP reader enumerated all 14 intended files. Seven automated checks passed again after the setup guidance fix.
 
 - Updated the Discord application icon to a star-swirl variant with a readable GPT-6 label, created from the existing reference artwork. Saved the source icon as public/astra-icon.png; the original website hero and presence artwork remain available.
+
+- User confirmed live presence works, requested no text on the icon, and authorized displaying current project names on Discord. Restored the original text-free swirl as the application icon and source icon. Added opt-in project sharing from recent primary Astra workspace metadata, plus a fixed friendly-name override; only the folder basename enters the activity. Full paths and conversations are not sent. Project changes preserve the session timer.
+
+- Added a reversible per-user Windows sign-in launcher and an Automatic-on-start preference. It runs the existing local companion hidden, opens no browser, and checks for an already-running companion. Enabled and exercised that launcher for the requesting user, with project sharing enabled. Friends must complete their own Discord connection setup, then run Enable Automatic Startup.cmd once.
+
+- Verified the actual Windows startup launcher starts the companion without a browser window. The live API reports Automatic mode, project sharing enabled, the current folder name, and connected/published true after Discord acknowledgement. Verified the local UI displays the same project. All eight automated checks pass, including opt-in privacy, basename-only detection, stale-project clearing, and activity text limits.
