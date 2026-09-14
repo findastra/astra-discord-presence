@@ -18,3 +18,5 @@
 - Local setup now opens automatically when no Application ID is configured. Start/Automatic lead to setup instead of appearing to start a session without an ID.
 - The user completed application creation in Discord. Configured its public Application ID locally, uploaded and saved the requested artwork as astra_galaxy, and started a manual session. The running companion reports connected:true and published:true after Discord acknowledged SET_ACTIVITY; the local UI displays the live elapsed timer. Visibility on another person's profile view remains unverified and depends on Discord activity privacy settings.
 - Public GitHub Pages app verified at https://findastra.github.io/astra-discord-presence/. The Windows ZIP download returned HTTP 200 with ZIP content type; the native ZIP reader enumerated all 14 intended files. Seven automated checks passed again after the setup guidance fix.
+
+- Updated the Discord application icon to a star-swirl variant with a readable GPT-6 label, created from the existing reference artwork. Saved the source icon as public/astra-icon.png; the original website hero and presence artwork remain available.
