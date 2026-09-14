@@ -36,7 +36,7 @@ async function refresh() {
     if (!initialized) {
       $('clientId').value = state.config.clientId;
       $('image').value = state.config.image;
-      $('setup').open = false;
+      $('setup').open = !state.config.clientId;
       initialized = true;
     }
     $('status').textContent = state.message;
@@ -62,6 +62,12 @@ for (const mode of ['manual', 'off', 'auto']) {
     if (hosted) {
       state = { startedAt: mode === 'manual' ? (state?.startedAt || Math.floor(Date.now() / 1000)) : null };
       drawTimer();
+      return;
+    }
+    if (mode !== 'off' && !state?.config.clientId) {
+      $('setup').open = true;
+      $('clientId').focus();
+      $('status').textContent = 'Finish the one-time Discord setup below, then start your session.';
       return;
     }
     $(mode).disabled = true;

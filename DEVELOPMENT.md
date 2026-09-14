@@ -12,4 +12,8 @@
 
 ## Validation and publication
 
-Pending until the checks and remote publication below are recorded. A working public preview does not establish that Discord accepted a presence payload; that requires a configured Application ID and a signed-in desktop Discord session.
+- Seven automated tests passed, including session timing, metadata filtering, frame decoding, and a mock named-pipe handshake/activity acknowledgement/clear. Static HTML, CSS and PNG returned HTTP 200 with expected content types.
+- Initial code pushed to the public findastra/astra-discord-presence repository (2c282b6). GitHub Pages configured for main:/docs; source save confirmed by GitHub.
+- The user's missing Discord presence was traced to a stopped local companion and an empty Application ID. Restarted the companion as a hidden background process. Discord desktop is running. Application creation is prepared, awaiting the user's approval of Discord Developer Terms and Policy.
+- Local setup now opens automatically when no Application ID is configured. Start/Automatic lead to setup instead of appearing to start a session without an ID.
+- Actual Discord acceptance and profile visibility remain unverified until application setup is complete. Mock tests and the hosted preview do not establish a live Discord connection.
