@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -43,14 +43,14 @@ test('read-only detector excludes subagents and respects a newer non-Astra prima
   const dir = mkdtempSync(join(tmpdir(), 'astra-detect-'));
   try {
     const db = new DatabaseSync(join(dir, 'state_5.sqlite'));
-    db.exec('CREATE TABLE threads(model TEXT, updated_at INTEGER, archived INTEGER, source TEXT, agent_path TEXT, cwd TEXT)');
+    db.exec('CREATE TABLE threads(model TEXT, updated_at INTEGER, archived INTEGER, source TEXT, agent_path TEXT, cwd TEXT, id TEXT, project_id TEXT)');
     const add = db.prepare('INSERT INTO threads(model, updated_at, archived, source, agent_path) VALUES (?, ?, ?, ?, ?)');
     add.run('gpt-6-astra', 999, 0, 'vscode', null);
     add.run('codex-auto-review', 1000, 0, '{"subagent":{}}', null);
     assert.equal(detectAstra(dir, 1_000_000).active, true);
     db.prepare('UPDATE threads SET cwd = ? WHERE model = ?').run("C:\\Users\\private\\Mommy's Basis of Design", 'gpt-6-astra');
     assert.equal(detectAstra(dir, 1_000_000).project, '');
-    assert.equal(detectAstra(dir, 1_000_000, true).project, "Mommy's Basis of Design");
+    db.exec("UPDATE threads SET id = 'task', project_id = 'project' WHERE model = 'gpt-6-astra'"); writeFileSync(join(dir, '.codex-global-state.json'), JSON.stringify({'local-projects': {project: {name: "Mommy's Basis of Design"}}})); assert.equal(detectAstra(dir, 1_000_000, true).project, "Mommy's Basis of Design");
     assert.equal(detectAstra(dir, 2_000_000, true).project, '');
     add.run('gpt-5.6-sol', 1001, 0, 'vscode', null);
     assert.equal(detectAstra(dir, 1_002_000).active, false);

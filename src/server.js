@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { Presence, activity, validateConfig } from './presence.js';
 import { detectAstra } from './detector.js';
 import { DiscordRPC } from './rpc.js';
+import { startupEnabled, setStartup } from './windows-startup.js';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const configPath = join(root, '.local', 'config.json');
@@ -100,11 +101,19 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/api/status') {
       return send(res, 200, { app: 'astra-discord-presence', config, mode: presence.mode, startedAt: presence.startedAt, published,
-        connected: rpc.ready, message, project: currentProject(), detection: detection.message });
+        connected: rpc.ready, message, startupEnabled: startupEnabled(), project: currentProject(), detection: detection.message });
     }
     if (req.method === 'POST') {
       if (req.headers.origin !== origin) return send(res, 403, { error: 'Open the local control panel to make changes.' });
       const input = await jsonBody(req);
+      if (req.url === '/api/startup') {
+        if (typeof input.enabled !== 'boolean') throw new Error('Choose whether to run on startup.');
+        setStartup(input.enabled);
+        config.automaticOnStart = input.enabled;
+        mkdirSync(join(root, '.local'), { recursive: true });
+        writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+        return send(res, 200, { ok: true });
+      }
       if (req.url === '/api/config') {
         const nextConfig = validateConfig(input);
         mkdirSync(join(root, '.local'), { recursive: true });

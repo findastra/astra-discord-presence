@@ -26,3 +26,8 @@
 - Added a reversible per-user Windows sign-in launcher and an Automatic-on-start preference. It runs the existing local companion hidden, opens no browser, and checks for an already-running companion. Enabled and exercised that launcher for the requesting user, with project sharing enabled. Friends must complete their own Discord connection setup, then run Enable Automatic Startup.cmd once.
 
 - Verified the actual Windows startup launcher starts the companion without a browser window. The live API reports Automatic mode, project sharing enabled, the current folder name, and connected/published true after Discord acknowledgement. Verified the local UI displays the same project. All eight automated checks pass, including opt-in privacy, basename-only detection, stale-project clearing, and activity text limits.
+
+## 2026-09-14
+- Fixed project identity: resolve the current task's saved Codex project assignment and display name; never fall back to a folder basename. Confirmed the saved Mommy's World project uses the Mommy's 2 folder. Unknown projects remain generic unless a friendly-name override is provided.
+- Run on Windows startup now installs/removes the per-user startup entry immediately. Eight tests pass.
+- Claude companion remains pending clarification of Claude desktop, Code, or browser. Separate local companion processes can coexist, but Discord decides which activities appear; simultaneous display alongside all games and Spotify has not been verified.

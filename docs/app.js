@@ -38,7 +38,7 @@ async function refresh() {
       $('image').value = state.config.image;
       $('share-project').checked = state.config.shareProject;
       $('project-name').value = state.config.projectName || '';
-      $('automatic-start').checked = state.config.automaticOnStart;
+      $('automatic-start').checked = state.startupEnabled;
       $('setup').open = !state.config.clientId;
       initialized = true;
     }
@@ -85,7 +85,7 @@ $('settings').addEventListener('submit', async event => {
   try {
     await request('/api/config', { clientId: $('clientId').value, image: $('image').value,
       shareProject: $('share-project').checked, projectName: $('project-name').value,
-      automaticOnStart: $('automatic-start').checked });
+      automaticOnStart: state.config.automaticOnStart });
     $('save-status').textContent = 'Saved. Choose Start session or Automatically detect Codex.';
     await refresh();
   } catch (error) { $('save-status').textContent = error.message; }
@@ -101,6 +101,16 @@ $('quit').addEventListener('click', async () => {
     drawTimer();
     document.querySelectorAll('button').forEach(button => { button.disabled = true; });
   } catch (error) { $('status').textContent = error.message; }
+});
+$('automatic-start').addEventListener('change', async () => {
+  try {
+    await request('/api/startup', { enabled: $('automatic-start').checked });
+    await refresh();
+    $('save-status').textContent = $('automatic-start').checked ? 'Will run quietly when you sign into Windows.' : 'Windows startup disabled.';
+  } catch (error) {
+    $('automatic-start').checked = ! $('automatic-start').checked;
+    $('save-status').textContent = error.message;
+  }
 });
 if (hosted) {
   document.body.classList.add('hosted');
